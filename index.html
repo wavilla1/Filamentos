@@ -50,6 +50,7 @@ select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;backgroun
 .price b{font:500 18px var(--f-mono);font-variant-numeric:tabular-nums}
 .price span{color:var(--muted);font-size:12px}
 .price .ask{font:500 14px var(--f-body);color:var(--muted)}
+.vc{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 0}.vc span{border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:12px;color:var(--ink);background:var(--bg)}.vc span b{font-family:var(--f-mono);font-weight:500;margin-left:3px;color:var(--muted)}
 .empty{grid-column:1/-1;padding:48px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
 footer{margin-top:28px;color:var(--muted);font-size:13px}
 </style>
@@ -72,13 +73,14 @@ footer{margin-top:28px;color:var(--muted);font-size:13px}
 
 <script>
 const $=s=>document.querySelector(s);
+const allColors=p=>[...new Set([...(p.colores||[]),...(p.variantes||[]).map(v=>v.c)])];
 const cop=n=>'$'+Math.round(n).toLocaleString('es-CO');
 let items=[],mat='Todos',q='',marca='',color='';
 function fillSelect(id,vals,label){const s=$(id);const cur=s.value;s.innerHTML='';const o=document.createElement('option');o.value='';o.textContent=label;s.append(o);
   vals.forEach(v=>{const x=document.createElement('option');x.value=v;x.textContent=v;s.append(x)});s.value=vals.includes(cur)?cur:''}
 function options(){
   fillSelect('#fMarca',[...new Set(items.map(p=>p.marca).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es')),'Todas las marcas');
-  fillSelect('#fColor',[...new Set(items.flatMap(p=>p.colores||[]))].sort((a,b)=>a.localeCompare(b,'es')),'Todos los colores');
+  fillSelect('#fColor',[...new Set(items.flatMap(allColors))].sort((a,b)=>a.localeCompare(b,'es')),'Todos los colores');
 }
 $('#fMarca').addEventListener('change',e=>{marca=e.target.value;render()});
 $('#fColor').addEventListener('change',e=>{color=e.target.value;render()});
@@ -92,7 +94,7 @@ function chips(){
 }
 function render(){
   const w=q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const list=items.filter(p=>(mat==='Todos'||p.material===mat)&&(!marca||p.marca===marca)&&(!color||(p.colores||[]).includes(color))&&w.every(x=>[p.marca,p.material,(p.colores||[]).join(' ')].join(' ').toLowerCase().includes(x)));
+  const list=items.filter(p=>(mat==='Todos'||p.material===mat)&&(!marca||p.marca===marca)&&(!color||allColors(p).includes(color))&&w.every(x=>[p.marca,p.material,allColors(p).join(' ')].join(' ').toLowerCase().includes(x)));
   $('#count').textContent=`${list.length} ${list.length===1?'referencia':'referencias'}`;
   const g=$('#grid');g.innerHTML='';
   if(!list.length){g.innerHTML='<div class="empty">No hay filamentos con ese filtro.</div>';return}
@@ -101,13 +103,14 @@ function render(){
     const el=document.createElement('article');el.className='card';
     const low=p.stock<=2;
     el.innerHTML=`<div class="ph"><img loading="lazy" alt=""><span class="pill ${low?'low':'ok'}">${low?'Últimas unidades':'Disponible'}</span></div>
-      <div class="body"><div class="kick"></div><h2 class="name"></h2><p class="meta"></p>
+      <div class="body"><div class="kick"></div><h2 class="name"></h2><p class="meta"></p><div class="vc" hidden></div>
       <div class="price"></div></div>`;
     const src=p.img?(/^(https?:|data:)/.test(p.img)?p.img:'https://m.media-amazon.com/images/I/'+p.img+'._SL500_.jpg'):p.foto;if(src){el.querySelector('img').src=src;el.querySelector('img').referrerPolicy='no-referrer'}
     el.querySelector('img').alt=`${p.material} ${(p.colores||[]).join(' y ')}`;
     el.querySelector('.kick').textContent=p.marca;
     el.querySelector('.name').textContent=p.nombre||[p.material,(p.colores||[]).join(' + ')].filter(Boolean).join(' · ');
     el.querySelector('.meta').textContent=`Carrete 1 kg · ${p.stock} ${p.stock===1?'disponible':'disponibles'}`;
+    if((p.variantes||[]).length){const vc=el.querySelector('.vc');vc.hidden=false;const vs=[...p.variantes];const r=p.stock-vs.reduce((x,v)=>x+v.n,0);if(r>0)vs.push({c:'Otros colores',n:r});vs.forEach(v=>{const sp=document.createElement('span');sp.textContent=v.c;const b=document.createElement('b');b.textContent=v.n;sp.append(b);vc.append(sp)})}
     const pr=el.querySelector('.price');
     if(p.precio){const b=document.createElement('b');b.textContent=cop(p.precio);const s=document.createElement('span');s.textContent='por kg';pr.append(b,s)}
     else{const s=document.createElement('span');s.className='ask';s.textContent='Precio a consultar';pr.append(s)}
